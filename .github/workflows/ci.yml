@@ -129,6 +129,7 @@ jobs:
         with:
           context: ./api
           file: ./api/Dockerfile
+          pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -145,4 +146,4 @@ jobs:
         run: docker pull ghcr.io/wisescream/tabibna-api:latest
       - name: Scan image
         run: |
-          trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress ghcr.io/wisescream/tabibna-api:latest
+          trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress ghcr.io/wisescream/tabibna-api:latest

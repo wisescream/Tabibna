@@ -1,6 +1,6 @@
 # Production image for API
-# Pinned digest for node:20-bookworm-slim (update periodically)
-FROM node:20-bookworm-slim@sha256:d38efce970505168e50665d2350ae7d102204235d7072a1076afbdf227c1ea17 AS base
+# Use latest Node 20 bookworm-slim (kept updated upstream)
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -13,9 +13,11 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY prisma ./prisma
 RUN npx prisma generate && npm run build
+# Remove devDependencies from node_modules so final image is slimmer and avoids dev-only vulns
+RUN npm prune --omit=dev
 
 # Runtime
-FROM node:20-bookworm-slim@sha256:d38efce970505168e50665d2350ae7d102204235d7072a1076afbdf227c1ea17
+FROM node:20-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
