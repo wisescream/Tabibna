@@ -119,7 +119,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}-api
+          images: ghcr.io/wisescream/tabibna-api
           tags: |
             type=sha
             type=raw,value=latest
@@ -142,7 +142,7 @@ jobs:
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@v0.2.2
       - name: Pull image
-        run: docker pull ghcr.io/${{ github.repository }}-api:latest
+        run: docker pull ghcr.io/wisescream/tabibna-api:latest
       - name: Scan image
         run: |
-          trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress ghcr.io/${{ github.repository }}-api:latest
+          trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress ghcr.io/wisescream/tabibna-api:latest
