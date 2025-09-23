@@ -11,6 +11,11 @@ jobs:
     name: API tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: ci
+    env:
+      DATABASE_URL: mysql://root:rootpass@127.0.0.1:3307/tabibna_dev
+      PORT: 4000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,8 +28,11 @@ jobs:
       - name: Start DB via docker compose
         run: |
           docker compose up -d db
-          # Give MySQL a moment to accept connections
-          sleep 10
+          # Wait for MySQL (host port 3307) to accept connections (up to ~2 minutes)
+          for i in {1..60}; do
+            (echo > /dev/tcp/127.0.0.1/3307) >/dev/null 2>&1 && echo "MySQL is accepting connections" && break || true
+            echo "Waiting for MySQL... ($i)"; sleep 2;
+          done
 
       - name: Install deps and build API
         working-directory: ./api
@@ -37,14 +45,22 @@ jobs:
       - name: Start API (background)
         working-directory: ./api
         env:
-          PORT: 4000
           NODE_ENV: test
-          DATABASE_URL: mysql://root:rootpass@localhost:3307/tabibna_dev
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
           JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
           PAYMENT_WEBHOOK_SECRET: ${{ secrets.PAYMENT_WEBHOOK_SECRET }}
           SMS_WEBHOOK_SECRET: ${{ secrets.SMS_WEBHOOK_SECRET }}
+          SENTRY_DSN: ""
         run: |
+          # If JWT keys are not provided via secrets, generate ephemeral keys for tests
+          if [ -z "${JWT_PRIVATE_KEY}" ] || [ -z "${JWT_PUBLIC_KEY}" ]; then
+            echo "Generating ephemeral JWT RSA keys for CI tests"
+            openssl genrsa 2048 > jwt_private.pem
+            openssl rsa -in jwt_private.pem -pubout > jwt_public.pem
+            export JWT_PRIVATE_KEY="$(cat jwt_private.pem)"
+            export JWT_PUBLIC_KEY="$(cat jwt_public.pem)"
+          fi
           nohup node dist/index.js > ../api.log 2>&1 & echo $! > ../api.pid
 
       - name: Wait for API health
@@ -57,10 +73,16 @@ jobs:
       - name: Run API tests
         working-directory: ./api
         env:
-          API_URL: http://localhost:4000
+          API_URL: http://127.0.0.1:4000
           PAYMENT_WEBHOOK_SECRET: ${{ secrets.PAYMENT_WEBHOOK_SECRET }}
         run: |
           npm test --silent
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          echo "===== api.log ====="; cat api.log || true
+          echo "===== docker compose logs (db/api) ====="; docker compose logs db api || true
 
       - name: Tear down
         if: always()
