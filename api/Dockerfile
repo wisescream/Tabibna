@@ -2,7 +2,10 @@
 # Use latest Node 20 bookworm-slim (kept updated upstream)
 FROM node:20-bookworm-slim AS base
 WORKDIR /app
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y \
+	&& apt-get upgrade -y \
+	&& apt-get install -y --no-install-recommends openssl ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
 
 # Install deps
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
@@ -20,7 +23,10 @@ RUN npm prune --omit=dev
 FROM node:20-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y \
+	&& apt-get upgrade -y \
+	&& apt-get install -y --no-install-recommends openssl ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/dist ./dist
 COPY --from=base /app/prisma ./prisma

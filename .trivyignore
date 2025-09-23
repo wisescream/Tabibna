@@ -1,0 +1,5 @@
+# Ignore CVEs that are unfixed or will_not_fix in the base distro, with justification and review date
+# Review monthly and remove when fixed upstream.
+
+# Example: zlib advisory reported as will_not_fix upstream for Debian Bookworm (adjust if ID differs in scan)
+CVE-2023-45853
