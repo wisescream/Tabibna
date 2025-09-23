@@ -1,0 +1,153 @@
+// Prisma schema for Tabibna
+// Provider: MySQL
+
+generator client {
+  provider = "prisma-client-js"
+  // Ensure correct engine for Debian (OpenSSL 3) is bundled
+  binaryTargets = ["debian-openssl-3.0.x", "native"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  patient
+  practitioner
+  admin
+}
+
+enum ReservationStatus {
+  booked
+  confirmed
+  cancelled
+  completed
+  no_show
+}
+
+model users {
+  id            BigInt      @id @default(autoincrement())
+  email         String      @unique
+  phone         String?     @db.VarChar(32)
+  password_hash String?
+  role          Role        @default(patient)
+  first_name    String?     @db.VarChar(100)
+  last_name     String?     @db.VarChar(100)
+  locale        String?     @db.VarChar(5)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+
+  practitioner_profile practitioners_profiles?
+  notifications        notifications[]
+  refresh_tokens       refresh_tokens[]
+  patient_reservations reservations[] @relation("UserPatientReservations")
+  reset_token          reset_tokens?
+}
+
+model practitioners_profiles {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt   @unique
+  specialty  String?  @db.VarChar(150)
+  bio        String?
+  clinic_id  BigInt?
+  price_min  Int?
+  price_max  Int?
+  rating     Float    @default(0)
+  created_at DateTime @default(now())
+
+  user   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  clinic clinics? @relation(fields: [clinic_id], references: [id])
+  schedules schedules[]
+  reservations reservations[]
+
+  @@index([user_id])
+  @@index([clinic_id])
+}
+
+model clinics {
+  id         BigInt   @id @default(autoincrement())
+  name       String?
+  address    String?
+  city       String?  @db.VarChar(100)
+  latitude   Decimal? @db.Decimal(9, 6)
+  longitude  Decimal? @db.Decimal(9, 6)
+  phone      String?  @db.VarChar(32)
+  created_at DateTime @default(now())
+
+  practitioners practitioners_profiles[]
+  reservations  reservations[]
+}
+
+model schedules {
+  id                    BigInt   @id @default(autoincrement())
+  practitioner_id       BigInt
+  day_of_week           Int?     // 0..6
+  start_time            DateTime? @db.Time(0)
+  end_time              DateTime? @db.Time(0)
+  slot_duration_minutes Int?     @default(15)
+  created_at            DateTime @default(now())
+
+  practitioner practitioners_profiles @relation(fields: [practitioner_id], references: [id], onDelete: Cascade)
+
+  @@index([practitioner_id])
+}
+
+model reservations {
+  id               BigInt   @id @default(autoincrement())
+  patient_id       BigInt
+  practitioner_id  BigInt
+  clinic_id        BigInt?
+  start_datetime   DateTime
+  end_datetime     DateTime
+  status           ReservationStatus @default(booked)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  patient      users                   @relation("UserPatientReservations", fields: [patient_id], references: [id])
+  practitioner practitioners_profiles  @relation(fields: [practitioner_id], references: [id])
+  clinic       clinics?                @relation(fields: [clinic_id], references: [id])
+
+  @@index([practitioner_id, start_datetime], name: "idx_pract_start")
+}
+
+model notifications {
+  id        BigInt   @id @default(autoincrement())
+  user_id   BigInt
+  type      String?  @db.VarChar(50)
+  channel   String?  @db.VarChar(50)
+  payload   Json?
+  sent_at   DateTime?
+  status    String   @default("pending")
+  created_at DateTime @default(now())
+
+  user users @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+}
+
+model refresh_tokens {
+  id           BigInt   @id @default(autoincrement())
+  user_id      BigInt
+  token_hash   String
+  expires_at   DateTime
+  created_at   DateTime @default(now())
+  revoked      Boolean  @default(false)
+
+  user users @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+}
+
+model reset_tokens {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt   @unique
+  token_hash String
+  expires_at DateTime
+  used       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user users @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+}

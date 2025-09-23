@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: tabibna_dev
+    ports:
+      - '3307:3306'
+    volumes:
+      - db_data:/var/lib/mysql
+
+  api:
+    build: ./api
+    environment:
+      - DATABASE_URL=mysql://root:rootpass@db:3306/tabibna_dev
+      - JWT_PRIVATE_KEY=/run/secrets/jwt_private
+      - JWT_PUBLIC_KEY=/run/secrets/jwt_public
+      - PAYMENT_WEBHOOK_SECRET=change-me
+      - SMS_WEBHOOK_SECRET=
+      - NODE_ENV=development
+      - PORT=4000
+    depends_on:
+      - db
+    ports:
+      - '4000:4000'
+    secrets:
+      - jwt_private
+      - jwt_public
+
+  worker:
+    build: ./worker
+    environment:
+      - DATABASE_URL=mysql://root:rootpass@db:3306/tabibna_dev
+      - NODE_ENV=development
+    depends_on:
+      - db
+      - api
+
+volumes:
+  db_data:
+
+
+secrets:
+  jwt_private:
+    file: ./secrets/jwt_private.pem
+  jwt_public:
+    file: ./secrets/jwt_public.pem
