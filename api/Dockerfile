@@ -5,6 +5,8 @@ WORKDIR /app
 RUN apt-get update -y \
 	&& apt-get upgrade -y \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
+	&& npm install -g npm@11.6.1 \
+	&& npm cache clean --force \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Install deps
@@ -26,6 +28,8 @@ ENV NODE_ENV=production
 RUN apt-get update -y \
 	&& apt-get upgrade -y \
 	&& apt-get install -y --no-install-recommends openssl ca-certificates \
+	&& npm install -g npm@11.6.1 \
+	&& npm cache clean --force \
 	&& rm -rf /var/lib/apt/lists/*
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/dist ./dist
